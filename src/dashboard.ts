@@ -5,10 +5,21 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>HaiderBrain Remote</title>
 <style>
-  :root[data-theme="dark"] { --bg:#0d0d0d; --panel:#1a1a1a; --panel2:#222; --border:#2e2e2e; --text:#eee; --muted:#999; --accent:#9a82db; --btn:#6750a4; --danger:#8a2f2f; --me:#3a2d63; }
-  :root[data-theme="light"] { --bg:#f4f4f6; --panel:#fff; --panel2:#f0f0f3; --border:#ddd; --text:#1a1a1a; --muted:#666; --accent:#6750a4; --btn:#6750a4; --danger:#c0392b; --me:#e4defa; }
+  :root[data-theme="dark"] { --bg:#111217; --panel:#181a20; --panel2:#1f222b; --border:#2a2d38; --text:#d8dade; --muted:#8b8f9c; --accent:#5794f7; --btn:#2a3f66; --danger:#e5484d; --me:#1e3a5f; --good:#3fb950; }
+  :root[data-theme="light"] { --bg:#f4f4f6; --panel:#fff; --panel2:#f0f0f3; --border:#ddd; --text:#1a1a1a; --muted:#666; --accent:#6750a4; --btn:#6750a4; --danger:#c0392b; --me:#e4defa; --good:#2e7d32; }
   * { box-sizing:border-box; }
-  body { font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); max-width:1100px; margin:0 auto; padding:14px; }
+  body { font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background:var(--bg); color:var(--text); max-width:1200px; margin:0 auto; padding:16px; }
+  h1 { font-weight:700; letter-spacing:-0.3px; }
+  h3 { text-transform:uppercase; font-size:11px; letter-spacing:1px; color:var(--muted); }
+  button, a.btn { border-radius:6px; font-weight:600; }
+  .card, .homeCard, .srow, .panel .line { border-radius:8px !important; }
+  .card.on .dot, .on-dot, .badge.good { background:var(--good); color:var(--good); }
+  .badge.good { background:rgba(63,185,80,0.15); border:1px solid rgba(63,185,80,0.4); }
+  .badge.bad { background:rgba(229,72,77,0.15); border:1px solid rgba(229,72,77,0.4); }
+  .homeCard:not(.off) { border-left:3px solid var(--good); }
+  .homeCard.off { border-left:3px solid var(--border); }
+  #tabs { border-bottom:1px solid var(--border); }
+  .tab.active { font-weight:700; }
   h1 { font-size:19px; margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; }
   h3 { font-size:14px; margin:0 0 8px; color:var(--muted); }
   .row { display:flex; gap:8px; margin:8px 0; align-items:center; flex-wrap:wrap; }
@@ -27,7 +38,8 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
   .cname { font-weight:600; font-size:14px; }
   .csub { font-size:11px; color:var(--muted); margin-top:3px; }
   .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:#555; }
-  .card.on .dot { background:#4caf50; }
+    .card.on .dot { background:#4caf50; }
+  .on-dot { background:#4caf50; }
 
   .tabs { display:flex; gap:4px; margin:12px 0 0; border-bottom:1px solid var(--border); overflow-x:auto; }
   .tab { padding:9px 13px; cursor:pointer; font-size:13px; color:var(--muted); border-bottom:2px solid transparent; white-space:nowrap; }
@@ -61,7 +73,17 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
   .bubbleTime { font-size:10px; color:var(--muted); margin-top:3px; }
   .backBtn { display:none; }
   .chatBackBtn { display:none; margin-bottom:6px; }
-
+  .homeGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+  .homeCard { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; }
+  .homeCard.off { opacity:0.6; }
+  .homeHead { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .homeName { font-weight:700; font-size:15px; }
+  .homeBadges { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+  .badge { font-size:11px; padding:3px 8px; border-radius:20px; background:var(--panel2); }
+  .badge.good { color:#4caf50; }
+  .badge.bad { color:#ff8a80; }
+  .homeActions { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  #feed { display:flex; flex-direction:column; gap:6px; }
   @media (max-width: 700px) {
     .chatWrap { flex-direction:column; }
     .contactsCol { width:100%; border-right:0; border-bottom:1px solid var(--border); padding-right:0; padding-bottom:6px; max-height:260px; }
@@ -85,7 +107,8 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
 <div id="cards"></div>
 
 <div class="tabs" id="tabs">
-  <div class="tab active" data-tab="screen">Screen</div>
+  <div class="tab active" data-tab="home">Home</div>
+  <div class="tab" data-tab="screen">Screen</div>
   <div class="tab" data-tab="photos">Photos</div>
   <div class="tab" data-tab="videos">Videos</div>
   <div class="tab" data-tab="whatsapp">WhatsApp</div>
@@ -101,13 +124,20 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
 <div class="tab" data-tab="health">Health</div>
   <div class="tab" data-tab="settings">Settings</div>
 </div>
-
+<div class="row">
+  <input id="cmd" type="text" placeholder="Type a command, e.g. open whatsapp, show my screenshots, read my messages">
+  <button id="send">Send</button>
+</div>
 <div class="row" id="autoRefreshRow" style="display:none">
   <label><input id="autoRefresh" type="checkbox"> Auto-refresh this tab every 30s</label>
 </div>
+<div class="panel active" id="panel-home">
+  <div class="homeGrid" id="homeGrid"></div>
+  <h3 style="margin-top:20px">Recent activity</h3>
+  <div id="feed"><div class="empty">Nothing yet</div></div>
+</div>
 
-<div class="panel active" id="panel-screen">
-  <div class="row"><button class="small" id="scBack">Back</button><button class="small" id="scHome">Home</button><button class="small" id="scRecents">Recents</button>
+<div class="panel" id="panel-screen">  <div class="row"><button class="small" id="scBack">Back</button><button class="small" id="scHome">Home</button><button class="small" id="scRecents">Recents</button>
     <input id="scText" type="text" placeholder="Type into focused field"><button class="small" id="scType">Type</button></div>
   <div id="screenWrap"><img id="screenImg"></div>
   <div class="empty" id="screenEmpty">Select a phone above. Screen mirroring starts automatically.</div>
@@ -278,6 +308,64 @@ function sendTo(ids, obj, quiet) {
 function requestStatus() { sendTo(online.map(function (p) { return p.id; }), { type: 'get_status' }, true); }
 
 // ---------- phone cards ----------
+
+var feedItems = [];
+function pushFeed(text) {
+  feedItems.unshift({ text: text, ts: Date.now() });
+  feedItems = feedItems.slice(0, 20);
+  renderFeed();
+}
+function renderFeed() {
+  var box = $('feed'); if (!box) return;
+  box.innerHTML = '';
+  if (!feedItems.length) { box.appendChild(el('div', 'empty', 'Nothing yet')); return; }
+  feedItems.forEach(function (f) {
+    box.appendChild(el('div', 'line', new Date(f.ts).toLocaleTimeString() + ' - ' + f.text));
+  });
+}
+function renderHomeGrid() {
+  var box = $('homeGrid'); if (!box) return;
+  box.innerHTML = '';
+  var onlineIds = {}; online.forEach(function (p) { onlineIds[p.id] = true; });
+  var ids = Object.keys(known);
+  if (!ids.length) { box.appendChild(el('div', 'empty', 'Connect to see your phones here')); return; }
+  ids.sort(function (a, b) {
+    var aOn = onlineIds[a] ? 1 : 0, bOn = onlineIds[b] ? 1 : 0;
+    return bOn - aOn;
+  });
+  ids.forEach(function (id) {
+    var isOn = !!onlineIds[id];
+    var st = phoneStatus[id] || {};
+    var card = el('div', 'homeCard' + (isOn ? '' : ' off'));
+    var head = el('div', 'homeHead');
+    var nameSpan = el('span', 'homeName'); nameSpan.appendChild(el('span', 'dot' + (isOn ? ' on-dot' : '')));
+    nameSpan.appendChild(document.createTextNode(' ' + known[id].name));
+    head.appendChild(nameSpan);
+    head.appendChild(el('span', 'csub', isOn ? ((st.battery >= 0 ? st.battery + '%' : '') + (st.charging ? ' ⚡' : '')) : 'Offline'));
+    card.appendChild(head);
+    card.appendChild(el('div', 'csub', isOn ? 'Online - last status just now' : 'Last seen ' + ago(known[id].lastSeen)));
+    var badges = el('div', 'homeBadges');
+    [['Notifications', st.notifAccess], ['Screen/control', st.accessibilityOn], ['Lock/wipe', st.adminActive]].forEach(function (pair) {
+      if (!isOn) return;
+      var b = el('span', 'badge ' + (pair[1] ? 'good' : 'bad'), pair[0] + ': ' + (pair[1] ? 'ON' : 'OFF'));
+      badges.appendChild(b);
+    });
+    if (isOn) card.appendChild(badges);
+    var actions = el('div', 'homeActions');
+    [['Screen', 'screen'], ['Photos', 'photos'], ['WhatsApp', 'whatsapp'], ['Location', 'location']].forEach(function (pair) {
+      var b = el('button', 'small', pair[0]);
+      b.disabled = !isOn;
+      b.onclick = function () {
+        $('cards').dataset.sel = id;
+        renderCards();
+        switchTab(pair[1]);
+      };
+      actions.appendChild(b);
+    });
+    card.appendChild(actions);
+    box.appendChild(card);
+  });
+}
 function renderHealth() {
   var box = $('healthBox'); if (!box) return;
   box.innerHTML = '';
@@ -323,8 +411,10 @@ function renderCards() {
     if (isOn && st) {
       var n = el('div', 'csub', st.notifAccess ? 'Notifications: ON' : 'Notifications: OFF');
       if (!st.notifAccess) n.style.color = '#ff8a80'; c.appendChild(n);
-      var a = el('div', 'csub', st.accessibilityOn ? 'Screen/control: ON' : 'Screen/control: OFF');
+         var a = el('div', 'csub', st.accessibilityOn ? 'Screen/control: ON' : 'Screen/control: OFF');
       if (!st.accessibilityOn) a.style.color = '#ff8a80'; c.appendChild(a);
+      var sc = el('div', 'csub', st.screenCaptureOn ? 'Screen capture: ACTIVE' : 'Screen capture: tap "Start screen capture" in app');
+      if (!st.screenCaptureOn) sc.style.color = '#ffb74d'; c.appendChild(sc);
     }
     c.onclick = function () { box.dataset.sel = id; renderCards(); loadTab(currentTab, true); };
     box.appendChild(c);
@@ -373,12 +463,25 @@ function switchTab(tab) {
   loadTab(tab, true);
 }
 document.querySelectorAll('.tab').forEach(function (t) { t.onclick = function () { switchTab(t.dataset.tab); }; });
+function sendCommand() {
+  var text = $('cmd').value.trim(); if (!text) return;
+  var id = selectedId();
+  if (sendTo([id], { type: 'command', text: text })) {
+    pushFeed('You: ' + text);
+    log('You (' + nameOf(id) + '): ' + text, 'me');
+    $('cmd').value = '';
+  }
+}
+$('send').onclick = sendCommand;
+$('cmd').onkeydown = function (e) { if (e.key === 'Enter') sendCommand(); };
 $('autoRefresh').onchange = function () { switchTab(currentTab); };
 
 function loadTab(tab, isSwitch) {
+  if (tab === 'home') { renderHomeGrid(); requestStatus(); return; }
   var id = selectedId();
   if (!id) return;
   if (tab === 'health') { renderHealth(); requestStatus(); }
+
   if (tab === 'screen') { if (isSwitch) sendTo([id], { type: 'screen_start', intervalMs: 400 }, true); }
   else if (tab === 'photos') sendTo([id], { type: 'command', text: 'show my photos' }, true);
   else if (tab === 'videos') { if (isSwitch) { videoOffsetReset(); } }
@@ -525,7 +628,8 @@ function addLive(m) {
   d.appendChild(b);
   $('live').prepend(d);
   while ($('live').children.length > 30) $('live').removeChild($('live').lastChild);
-  notify(m.sender + ' (' + nameOf(m.from) + ')', m.message);
+    notify(m.sender + ' (' + nameOf(m.from) + ')', m.message);
+  pushFeed(nameOf(m.from) + ' - ' + m.app + ' - ' + m.sender + ': ' + m.message);
   // feed into whichever thread store is relevant
   var appKey = String(m.app || '').toLowerCase();
   if (appKey === 'whatsapp') { waAll.push({ sender: m.sender, message: m.message, timestamp: m.timestamp, app: 'WhatsApp' }); renderContacts('wa'); if (waSel === m.sender) renderThread('wa'); }
@@ -607,12 +711,14 @@ function handle(m) {
   if (from && known[from]) known[from].lastSeen = Date.now();
 
   if (m.type === 'devices') updateDevices(m.phones);
-  else if (m.type === 'error') {
+    else if (m.type === 'error') {
     if (m.error === 'no_accessibility') { $('screenEmpty').style.display = 'block'; $('screenEmpty').textContent = 'Enable "Screen & remote control" on the phone first.'; }
+       else if (m.error === 'no_screen_capture') { $('screenEmpty').style.display = 'block'; $('screenEmpty').textContent = 'Tap "Start screen capture" in the HaiderBrain app on the phone, then come back here.'; }
+    else if (String(m.error).indexOf('screenshot_failed_code_') === 0) { $('screenEmpty').style.display = 'block'; $('screenEmpty').textContent = 'Screen capture failed - ' + m.error; log('Screen error: ' + m.error, 'err'); }
     else log(m.error === 'phone_offline' ? 'That phone is offline' : ('Error: ' + m.error), 'err');
   }
-  else if (m.type === 'status') { phoneStatus[from] = m; renderCards(); renderHealth(); }
-  else if (m.type === 'info') log(nameOf(from) + ': ' + (m.reply || ''));
+  else if (m.type === 'status') { phoneStatus[from] = m; renderCards(); renderHealth(); renderHomeGrid(); }
+  else if (m.type === 'info') { log(nameOf(from) + ': ' + (m.reply || '')); pushFeed(nameOf(from) + ': ' + (m.reply || '')); }
   else if (m.type === 'result') renderPhotos({ from: from, photos: m.photos, reply: m.reply });
   else if (m.type === 'photo') showFull(m.data);
   else if (m.type === 'video_data') { var a = document.createElement('a'); a.href = 'data:video/mp4;base64,' + m.data; a.download = 'haiderbrain-video.mp4'; a.click(); log(nameOf(from) + ': video downloaded'); }
