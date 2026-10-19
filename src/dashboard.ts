@@ -98,6 +98,7 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
   <div class="tab" data-tab="contacts">Contacts</div>
   <div class="tab" data-tab="calendar">Calendar</div>
   <div class="tab" data-tab="allnotifs">All Notifs</div>
+<div class="tab" data-tab="health">Health</div>
   <div class="tab" data-tab="settings">Settings</div>
 </div>
 
@@ -168,6 +169,9 @@ export const DASHBOARD_HTML = String.raw`<!doctype html>
 <div class="panel" id="panel-allnotifs">
   <div class="row"><label><input id="captureAllToggle" type="checkbox"> Capture notifications from every app (not just WhatsApp/Instagram)</label></div>
   <div id="allNotifsList"></div><div class="empty" id="allNotifsEmpty">Toggle on, then click the tab again to refresh.</div>
+</div>
+<div class="panel" id="panel-health">
+  <div id="healthBox"></div>
 </div>
 
 <div class="panel" id="panel-settings">
@@ -274,6 +278,33 @@ function sendTo(ids, obj, quiet) {
 function requestStatus() { sendTo(online.map(function (p) { return p.id; }), { type: 'get_status' }, true); }
 
 // ---------- phone cards ----------
+function renderHealth() {
+  var box = $('healthBox'); if (!box) return;
+  box.innerHTML = '';
+  var id = selectedId();
+  if (!id) { box.appendChild(el('div', 'empty', 'Select a phone')); return; }
+  var st = phoneStatus[id] || {};
+  var rows = [
+    ['Battery', (st.battery >= 0 ? st.battery + '%' + (st.charging ? ' (charging)' : '') : 'unknown')],
+    ['Notification access (messages)', st.notifAccess ? 'ON' : 'OFF - open Notification access in phone Settings'],
+    ['Screen & remote control (Accessibility)', st.accessibilityOn ? 'ON' : 'OFF - open Accessibility in phone Settings'],
+    ['Lock / wipe (Device Admin)', st.adminActive ? 'ON' : 'OFF - tap "Enable remote lock/ring/wipe" in the app'],
+    ['Last screen frame', $('screenImg').dataset.from === id && $('screenImg').src ? 'received' : 'none yet this session'],
+    ['Messages saved on phone', (st.msgCount != null ? st.msgCount : '?')]
+  ];
+  rows.forEach(function (r) {
+    var row = el('div', 'callrow');
+    row.appendChild(el('span', '', r[0]));
+    var val = el('span', '', r[1]);
+    if (String(r[1]).indexOf('OFF') === 0) val.style.color = '#ff8a80';
+    row.appendChild(val);
+    box.appendChild(row);
+  });
+  var refreshBtn = el('button', 'small', 'Refresh');
+  refreshBtn.onclick = function () { sendTo([id], { type: 'get_status' }); };
+  box.appendChild(refreshBtn);
+}
+
 function renderCards() {
   var box = $('cards'); box.innerHTML = '';
   var onlineIds = {}; online.forEach(function (p) { onlineIds[p.id] = true; });
@@ -300,12 +331,27 @@ function renderCards() {
   });
 }
 
+var STALE_DAYS = 14;
+function pruneStale() {
+  var cutoff = Date.now() - STALE_DAYS * 86400000;
+  var onlineIds = {}; online.forEach(function (p) { onlineIds[p.id] = true; });
+  Object.keys(known).forEach(function (id) {
+    if (!onlineIds[id] && known[id].lastSeen && known[id].lastSeen < cutoff) delete known[id];
+  });
+}
+function mergeByName(newName, newId) {
+  // If a phone with the same display name already exists offline, treat this as a reinstall: drop the old entry
+  Object.keys(known).forEach(function (id) {
+    if (id !== newId && known[id].name === newName) delete known[id];
+  });
+}
 function updateDevices(phones) {
   var now = Date.now(); var newIds = {};
   (phones || []).forEach(function (p) { newIds[p.id] = true; });
   online.forEach(function (p) { if (!newIds[p.id] && known[p.id]) known[p.id].lastSeen = now; });
   online = phones || [];
-  online.forEach(function (p) { known[p.id] = { name: p.name, lastSeen: now }; });
+  online.forEach(function (p) { mergeByName(p.name, p.id); known[p.id] = { name: p.name, lastSeen: now }; });
+  pruneStale();
   saveKnown();
   renderCards();
   requestStatus();
@@ -332,6 +378,7 @@ $('autoRefresh').onchange = function () { switchTab(currentTab); };
 function loadTab(tab, isSwitch) {
   var id = selectedId();
   if (!id) return;
+  if (tab === 'health') { renderHealth(); requestStatus(); }
   if (tab === 'screen') { if (isSwitch) sendTo([id], { type: 'screen_start', intervalMs: 400 }, true); }
   else if (tab === 'photos') sendTo([id], { type: 'command', text: 'show my photos' }, true);
   else if (tab === 'videos') { if (isSwitch) { videoOffsetReset(); } }
@@ -564,7 +611,7 @@ function handle(m) {
     if (m.error === 'no_accessibility') { $('screenEmpty').style.display = 'block'; $('screenEmpty').textContent = 'Enable "Screen & remote control" on the phone first.'; }
     else log(m.error === 'phone_offline' ? 'That phone is offline' : ('Error: ' + m.error), 'err');
   }
-  else if (m.type === 'status') { phoneStatus[from] = m; renderCards(); }
+  else if (m.type === 'status') { phoneStatus[from] = m; renderCards(); renderHealth(); }
   else if (m.type === 'info') log(nameOf(from) + ': ' + (m.reply || ''));
   else if (m.type === 'result') renderPhotos({ from: from, photos: m.photos, reply: m.reply });
   else if (m.type === 'photo') showFull(m.data);
